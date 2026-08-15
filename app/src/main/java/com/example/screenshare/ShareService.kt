@@ -27,6 +27,7 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import okio.ByteString
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -251,7 +252,7 @@ class ShareService : Service(), ImageReader.OnImageAvailableListener {
 
             // Throttle network writes to ~10 fps.
             if (jpeg != null && now - lastSendTime >= FRAME_INTERVAL_MS) {
-                webSocket?.send(jpeg)
+                webSocket?.send(ByteString.of(*jpeg))
                 lastSendTime = now
             }
 
