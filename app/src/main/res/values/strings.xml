@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">Screen Share</string>
+    <string name="start_text">Start Sharing</string>
+    <string name="stop_text">Stop Sharing</string>
+    <string name="server_label">WebSocket Server URL</string>
+    <string name="server_hint">ws://10.0.2.2:8765/stream</string>
+    <string name="status_label">Status</string>
+    <string name="preview_label">Live preview</string>
+    <string name="streaming_ongoing">Screen sharing is active</string>
+</resources>

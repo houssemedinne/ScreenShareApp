@@ -1,0 +1,59 @@
+name: Android CI
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  # Allows firing the build manually from the GitHub Actions tab.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Debug APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Gradle (caches distribution + dependencies)
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept licenses and install SDK components
+        run: |
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          yes | sdkmanager "platforms;android-34" "build-tools;34.0.0" > /dev/null
+
+      # GitHub runners have far more RAM than this dev VM, so override the
+      # low-memory settings in gradle.properties for much faster CI builds.
+      - name: Optimize memory for CI
+        run: |
+          cat > gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8
+          org.gradle.parallel=true
+          org.gradle.caching=true
+          kotlin.compiler.execution.strategy=daemon
+          android.useAndroidX=true
+          EOF
+
+      - name: Build debug APK
+        run: ./gradlew :app:assembleDebug
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

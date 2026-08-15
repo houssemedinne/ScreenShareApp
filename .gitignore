@@ -1,0 +1,26 @@
+# Gradle
+.gradle/
+build/
+buildSrc/build/
+
+# Local machine-specific Android config (DO NOT commit)
+local.properties
+
+# Signing secrets
+*.jks
+*.keystore
+*.pem
+*.key
+keystore.properties
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node server dependencies
+server/node_modules/

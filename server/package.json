@@ -1,0 +1,13 @@
+{
+  "name": "screenshare-relay",
+  "version": "1.0.0",
+  "description": "WebSocket relay + browser viewer for the Android Screen Share app.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "ws": "^8.17.1"
+  }
+}

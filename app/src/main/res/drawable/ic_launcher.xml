@@ -1,0 +1,21 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Background circle -->
+    <path
+        android:fillColor="#1E88E5"
+        android:pathData="M54,54 m-42,0 a42,42 0 1,1 84,0 a42,42 0 1,1 -84,0" />
+
+    <!-- Monitor -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M34,42 h40 a4,4 0 0,1 4,4 v16 a4,4 0 0,1 -4,4 h-16 l2,4 h6 a2,2 0 0,1 0,4 h-28 a2,2 0 0,1 0,-4 h6 l2,-4 h-16 a4,4 0 0,1 -4,-4 v-16 a4,4 0 0,1 4,-4 z" />
+
+    <!-- Share arrow -->
+    <path
+        android:fillColor="#34C759"
+        android:pathData="M47,50 l12,-6 v6 l12,-8 l-12,-8 v6 z M47,52 a5,5 0 1,0 0.001,0 z" />
+</vector>

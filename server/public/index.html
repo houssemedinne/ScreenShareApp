@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Screen Share Viewer</title>
+<style>
+  body { background: #0f1419; color: #e6edf3; font-family: system-ui, sans-serif; text-align: center; margin: 24px; }
+  h2 { margin-bottom: 6px; }
+  #status { color: #79c0ff; margin: 10px 0 14px; }
+  img { max-width: 100%; border: 1px solid #30363d; border-radius: 10px; background: #000; box-shadow: 0 4px 20px rgba(0,0,0,.5); }
+  code { background: #21262d; padding: 2px 6px; border-radius: 6px; }
+</style>
+</head>
+<body>
+  <h2>&#128373; Screen Share Viewer</h2>
+  <div id="status">Connecting…</div>
+  <img id="preview" alt="Screen preview" />
+  <p>This page shows frames pushed from the Android app over WebSocket.</p>
+  <script>
+    const WS_PORT = Number(new URLSearchParams(location.search).get('ws') || 8765);
+    const statusEl = document.getElementById('status');
+    const img = document.getElementById('preview');
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    let ws;
+
+    function connect() {
+      const host = location.hostname || 'localhost';
+      const url = `${proto}://${host}:${WS_PORT}/watch`;
+      statusEl.textContent = `Connecting to ${url}…`;
+
+      ws = new WebSocket(url);
+      ws.binaryType = 'arraybuffer';
+
+      ws.onopen = () => {
+        statusEl.textContent = 'Connected. Waiting for frames from the app…';
+      };
+
+      ws.onmessage = (event) => {
+        if (event.data instanceof ArrayBuffer) {
+          const blob = new Blob([event.data], { type: 'image/jpeg' });
+          if (img.src) URL.revokeObjectURL(img.src);
+          img.src = URL.createObjectURL(blob);
+          statusEl.textContent = 'Receiving live screen&hellip;'.replace('&hellip;', '…');
+        }
+      };
+
+      ws.onclose = () => {
+        statusEl.textContent = 'Disconnected. Retrying in 2s…';
+        setTimeout(connect, 2000);
+      };
+      ws.onerror = () => ws.close();
+    }
+
+    connect();
+  </script>
+</body>
+</html>
