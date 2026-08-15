@@ -46,7 +46,7 @@ class MainActivity : AppCompatActivity() {
         toggleButton = findViewById(R.id.toggle_button)
         statusText = findViewById(R.id.status_text)
         previewImage = findViewById(R.id.preview_image)
-        serverUrlInput.setText("ws://10.0.2.2:8765/stream")
+        serverUrlInput.setText("ws://10.0.2.2:3000/stream")
 
         toggleButton.setOnClickListener { onToggleShare() }
     }

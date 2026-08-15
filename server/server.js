@@ -5,14 +5,14 @@ const fs = require('fs');
 const path = require('path');
 const { WebSocketServer } = require('ws');
 
-const HTTP_PORT = Number(process.env.HTTP_PORT || 3000);
-const WS_PORT = Number(process.env.WS_PORT || 8765);
+// Railway / PaaS exposes a single public port via $PORT. HTTP and WebSocket
+// SHARE that one port, so the relay is reachable on the same URL as the viewer
+// page. No extra firewall port needs to be opened.
+const PORT = Number(process.env.PORT || 3000);
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
-// ---------------------------------------------------------------------------
-// HTTP server: serves the browser viewer page.
-// ---------------------------------------------------------------------------
-const httpServer = http.createServer((req, res) => {
+// One HTTP server serves the viewer page AND accepts WebSocket upgrades.
+const server = http.createServer((req, res) => {
   const pathname = req.url.split('?')[0];
   const file = pathname === '/' ? '/index.html' : pathname;
   const full = path.normalize(path.join(PUBLIC_DIR, file));
@@ -31,16 +31,11 @@ const httpServer = http.createServer((req, res) => {
     res.end(data);
   });
 });
-httpServer.listen(HTTP_PORT, () => {
-  console.log(`Viewer page  -> http://localhost:${HTTP_PORT}`);
-});
 
-// ---------------------------------------------------------------------------
-// WebSocket relay:
-//   /stream  - one publisher (the Android app) sends JPEG frames
-//   /watch   - any number of viewers receive those frames live
-// ---------------------------------------------------------------------------
-const wss = new WebSocketServer({ port: WS_PORT });
+// WebSocket relay on the SAME port:
+//   /stream - one publisher (the Android app) sends JPEG frames
+//   /watch  - any number of viewers receive those frames live
+const wss = new WebSocketServer({ noServer: true });
 const watchers = new Set();
 let latestFrame = null;
 
@@ -56,9 +51,26 @@ function broadcast(buffer) {
   }
 }
 
+// Route WebSocket upgrades by path on the shared port.
+server.on('upgrade', (req, socket, head) => {
+  let route;
+  try {
+    route = new URL(req.url, `http://${req.headers.host}`).pathname;
+  } catch (_) {
+    socket.destroy();
+    return;
+  }
+  if (route !== '/stream' && route !== '/watch') {
+    socket.destroy();
+    return;
+  }
+  wss.handleUpgrade(req, socket, head, (ws) => {
+    wss.emit('connection', ws, req);
+  });
+});
+
 wss.on('connection', (socket, req) => {
-  const url = new URL(req.url, `http://${req.headers.host}`);
-  const route = url.pathname;
+  const route = new URL(req.url, `http://${req.headers.host}`).pathname;
 
   if (route === '/stream') {
     console.log('[publisher] connected');
@@ -98,10 +110,14 @@ wss.on('connection', (socket, req) => {
       console.log(`[viewer] disconnected (${watchers.size} remaining)`);
     });
   } else {
-    socket.close(1008, 'Unknown path');
+    socket.close(1008, 'Bad route');
   }
 });
 
-console.log(
-  `WebSocket relay -> ws://localhost:${WS_PORT}  [/stream publisher | /watch viewer]`
-);
+server.listen(PORT, () => {
+  console.log(`ScreenShare server ready`);
+  console.log(`  Viewer page -> http://localhost:${PORT}`);
+  console.log(
+    `  Relay      -> ws(s)://<host>:${PORT}/stream (publisher) | /watch (viewer)`
+  );
+});
