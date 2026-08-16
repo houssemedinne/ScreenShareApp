@@ -8,7 +8,6 @@ import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.PixelFormat
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
@@ -60,9 +59,6 @@ class ShareService : Service(), ImageReader.OnImageAvailableListener {
         @Volatile
         var statusListener: ((String) -> Unit)? = null
 
-        @Volatile
-        var previewListener: ((Bitmap) -> Unit)? = null
-
         fun updateStatus(msg: String) {
             status = msg
             statusListener?.invoke(msg)
@@ -79,7 +75,6 @@ class ShareService : Service(), ImageReader.OnImageAvailableListener {
     private var width = 0
     private var height = 0
     private var lastSendTime = 0L
-    private var lastPreviewTime = 0L
     private var serverUrl = ""
 
     private val stopped = AtomicBoolean(false)
@@ -254,17 +249,6 @@ class ShareService : Service(), ImageReader.OnImageAvailableListener {
             if (jpeg != null && now - lastSendTime >= FRAME_INTERVAL_MS) {
                 webSocket?.send(ByteString.of(*jpeg))
                 lastSendTime = now
-            }
-
-            // Cheap live preview at ~3 fps.
-            if (jpeg != null && now - lastPreviewTime >= 300L) {
-                val full = BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size)
-                val scaled = Bitmap.createScaledBitmap(
-                    full, 360, (height * 360f / width).toInt(), true
-                )
-                if (full !== scaled) full.recycle()
-                previewListener?.invoke(scaled)
-                lastPreviewTime = now
             }
         } finally {
             image.close()

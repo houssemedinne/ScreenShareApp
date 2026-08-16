@@ -8,7 +8,6 @@ import android.os.Build
 import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
-import android.widget.ImageView
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -19,7 +18,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var serverUrlInput: EditText
     private lateinit var toggleButton: Button
     private lateinit var statusText: TextView
-    private lateinit var previewImage: ImageView
 
     private val captureLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -45,7 +43,6 @@ class MainActivity : AppCompatActivity() {
         serverUrlInput = findViewById(R.id.server_url_input)
         toggleButton = findViewById(R.id.toggle_button)
         statusText = findViewById(R.id.status_text)
-        previewImage = findViewById(R.id.preview_image)
         serverUrlInput.setText("ws://10.0.2.2:3000/stream")
 
         toggleButton.setOnClickListener { onToggleShare() }
@@ -54,11 +51,6 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         ShareService.statusListener = { msg -> runOnUiThread { updateStatus(msg) } }
-        ShareService.previewListener = { bmp ->
-            previewImage.post {
-                if (!isFinishing) previewImage.setImageBitmap(bmp)
-            }
-        }
         updateStatus(ShareService.status)
         if (ShareService.isStreaming) {
             toggleButton.text = getString(R.string.stop_text)
@@ -70,7 +62,6 @@ class MainActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         ShareService.statusListener = null
-        ShareService.previewListener = null
     }
 
     private fun onToggleShare() {
