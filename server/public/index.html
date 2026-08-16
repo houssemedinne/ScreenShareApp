@@ -5,53 +5,133 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Screen Share Viewer</title>
 <style>
-  body { background: #0f1419; color: #e6edf3; font-family: system-ui, sans-serif; text-align: center; margin: 24px; }
-  h2 { margin-bottom: 6px; }
-  #status { color: #79c0ff; margin: 10px 0 14px; }
-  img { max-width: 100%; border: 1px solid #30363d; border-radius: 10px; background: #000; box-shadow: 0 4px 20px rgba(0,0,0,.5); }
-  code { background: #21262d; padding: 2px 6px; border-radius: 6px; }
+  body { background:#0f1419; color:#e6edf3; font-family:system-ui,sans-serif; margin:0; padding:24px; text-align:center; }
+  h2 { margin:0 0 4px; }
+  #bar { display:flex; align-items:center; justify-content:center; gap:12px; margin:14px 0; flex-wrap:wrap; }
+  #status { color:#79c0ff; font-size:14px; }
+  select { background:#21262d; color:#e6edf3; border:1px solid #30363d; border-radius:8px; padding:8px 12px; font-size:14px; }
+  #preview { max-width:100%; border:1px solid #30363d; border-radius:10px; background:#000; box-shadow:0 4px 20px rgba(0,0,0,.5); }
+  .off { color:#8b949e; padding:40px 0; }
 </style>
 </head>
 <body>
   <h2>&#128373; Screen Share Viewer</h2>
-  <div id="status">Connecting…</div>
-  <img id="preview" alt="Screen preview" />
-  <p>This page shows frames pushed from the Android app over WebSocket.</p>
+  <div id="bar">
+    <select id="streamSelect"></select>
+    <span id="status">Scanning for streams…</span>
+  </div>
+  <img id="preview" alt="Screen preview" style="display:none" />
+  <div id="off" class="off" style="display:none">No active stream. Ask someone to start sharing in the app.</div>
   <script>
     const statusEl = document.getElementById('status');
     const img = document.getElementById('preview');
+    const offEl = document.getElementById('off');
+    const selectEl = document.getElementById('streamSelect');
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    let ws;
+    const base = proto + '://' + location.host;
 
-    function connect() {
-      // Same origin as this page — HTTP and WebSocket share Railway's one port.
-      const url = `${proto}://${location.host}/watch`;
-      statusEl.textContent = `Connecting to ${url}…`;
+    let ws = null;
+    let connectedId = '';
+    let auto = true; // follow the latest stream automatically
+
+    function setStatus(t) { statusEl.textContent = t; }
+
+    function resetView() {
+      offEl.style.display = '';
+      img.style.display = 'none';
+      img.removeAttribute('src');
+    }
+
+    async function tick() {
+      let list = [];
+      try {
+        const res = await fetch('/api/streams');
+        list = (await res.json()).streams || [];
+      } catch (e) { /* keep last state */ }
+      renderSelect(list);
+      const chosen = auto ? (list[0] ? list[0].id : null) : (selectEl.value || null);
+      if (chosen !== connectedId) {
+        connectTo(chosen);
+      } else if (list.length === 0 && connectedId === '') {
+        resetView();
+        setStatus('No active stream');
+      }
+    }
+
+    function renderSelect(list) {
+      selectEl.innerHTML = '';
+      addOption('', 'auto (latest)');
+      for (const s of list) {
+        addOption(s.id, s.device + ' (' + s.width + 'x' + s.height + ', ' + s.viewers + ' view' + (s.viewers === 1 ? '' : 's') + ')');
+      }
+      if (auto) selectEl.value = '';
+    }
+
+    function addOption(val, label) {
+      const o = document.createElement('option');
+      o.value = val;
+      o.textContent = label;
+      selectEl.appendChild(o);
+    }
+
+    function connectTo(id) {
+      connectedId = id;
+      if (ws) { try { ws.close(); } catch (e) {} ws = null; }
+      if (!id) {
+        resetView();
+        setStatus('No active stream');
+        return;
+      }
+      const url = base + '/watch?stream=' + encodeURIComponent(id);
+      setStatus('Connecting to ' + id + '…');
 
       ws = new WebSocket(url);
       ws.binaryType = 'arraybuffer';
 
       ws.onopen = () => {
-        statusEl.textContent = 'Connected. Waiting for frames from the app…';
+        offEl.style.display = 'none';
+        img.style.display = '';
       };
-
-      ws.onmessage = (event) => {
-        if (event.data instanceof ArrayBuffer) {
-          const blob = new Blob([event.data], { type: 'image/jpeg' });
+      ws.onmessage = (ev) => {
+        if (ev.data instanceof ArrayBuffer) {
+          const blob = new Blob([ev.data], { type: 'image/jpeg' });
           if (img.src) URL.revokeObjectURL(img.src);
           img.src = URL.createObjectURL(blob);
-          statusEl.textContent = 'Receiving live screen&hellip;'.replace('&hellip;', '…');
+          offEl.style.display = 'none';
+          img.style.display = '';
+        } else {
+          try {
+            const m = JSON.parse(ev.data);
+            if (m.type === 'no-stream') {
+              setStatus('Stream ended');
+              connectedId = ''; // force re-select on next tick
+              setTimeout(tick, 500);
+            } else if (m.type === 'meta') {
+              setStatus(m.device ? 'Receiving ' + m.device + ' (' + m.width + 'x' + m.height + ')…' : 'Receiving live screen…');
+            }
+          } catch (e) {}
         }
       };
-
       ws.onclose = () => {
-        statusEl.textContent = 'Disconnected. Retrying in 2s…';
-        setTimeout(connect, 2000);
+        setStatus('Disconnected… refreshing');
+        ws = null;
+        connectedId = '';
+        setTimeout(tick, 1000);
       };
-      ws.onerror = () => ws.close();
+      ws.onerror = () => { try { ws.close(); } catch (e) {} };
     }
 
-    connect();
+    selectEl.addEventListener('change', () => {
+      if (selectEl.value === '') {
+        auto = true;
+      } else {
+        auto = false;
+        connectTo(selectEl.value);
+      }
+    });
+
+    setInterval(tick, 3000);
+    tick();
   </script>
 </body>
 </html>

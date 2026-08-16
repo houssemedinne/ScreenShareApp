@@ -22,6 +22,15 @@ Protocol: the app opens a WebSocket to `<ws://host>/stream` sharing the port, fi
 sends a JSON `{type:"stream", width, height, device}` message, then sends each frame
 as a binary JPEG. On disconnect it sends `{type:"stop"}`.
 
+### Multiple simultaneous streams
+- Every `/stream` connection is its own stream, auto-registered with a unique `id`.
+  The server replies `{type:"stream-ready", id}` and lists it from the device name
+  in the hello message, so **many users can share at once**.
+- Viewers watch a specific stream via `/watch?stream=<id>` (or connect without
+  `?stream=` to auto-follow the most recent one).
+- `GET /api/streams` returns the live list: `[{id, device, width, height, viewers}]`.
+- The viewer page shows a dropdown; pick a stream or use **auto (latest)**.
+
 ## Run the server
 
 Requires Node.js 18+.
